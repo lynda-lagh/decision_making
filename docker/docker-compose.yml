@@ -1,0 +1,101 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: weefarm_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 0000
+      POSTGRES_DB: weefarm_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - weefarm_network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: weefarm_backend
+    environment:
+      DATABASE_URL: postgresql://postgres:0000@db:5432/weefarm_db
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: weefarm_db
+      DB_USER: postgres
+      DB_PASSWORD: 0000
+      API_HOST: 0.0.0.0
+      API_PORT: 5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./results:/app/results
+    networks:
+      - weefarm_network
+    restart: unless-stopped
+
+  # Streamlit Dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: weefarm_dashboard
+    environment:
+      API_BASE_URL: http://backend:5000/api/v1
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    volumes:
+      - ./data:/app/data
+      - ./results:/app/results
+      - ./visualizations:/app/visualizations
+    networks:
+      - weefarm_network
+    restart: unless-stopped
+
+  # Pipeline Runner (Optional - for scheduled runs)
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: weefarm_pipeline
+    environment:
+      DATABASE_URL: postgresql://postgres:0000@db:5432/weefarm_db
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: weefarm_db
+      DB_USER: postgres
+      DB_PASSWORD: 0000
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./results:/app/results
+      - ./visualizations:/app/visualizations
+    networks:
+      - weefarm_network
+    command: python pipeline/pipeline.py
+    restart: "no"  # Run once, don't restart
+
+networks:
+  weefarm_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
