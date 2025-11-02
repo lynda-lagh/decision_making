@@ -43,11 +43,15 @@ wheels/
 .DS_Store
 Thumbs.db
 
-# Data
+# Data - exclude large files
 data/raw/*.csv
 data/raw/*.xlsx
 data/raw/*.json
+data/*.csv
+data/features_*.csv
+data/*_sample.csv
 !data/raw/.gitkeep
+!data/synthetic/*.csv
 
 # Models
 models/*.pkl
