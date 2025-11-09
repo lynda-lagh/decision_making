@@ -6,50 +6,54 @@ __pycache__/
 .Python
 env/
 venv/
-sousou/
-*.egg-info/
-dist/
-build/
+ENV/
+env.bak/
+venv.bak/
 
-# IDEs
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
+# Logs and databases
 *.log
-pipeline.log
-
-# Jupyter
-.ipynb_checkpoints/
-notebooks/
-
-# Git
-.git/
-.gitignore
-
-# Database
-*.db
+*.sql
 *.sqlite
 
-# Environment
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
 .env
-.env.local
+.venv
+env/
+venv/
 
-# Documentation
-*.md
-!README.md
-
-# Tests
-tests/
-test_*.py
-
-# Temporary files
-tmp/
-temp/
-*.tmp
+# Data - REMOVED to allow Docker to copy data files
+# Comment out these lines so Docker can see your data files:
+# data/raw/
+# data/processed/
+# data/synthetic/
+# !data/raw/.gitkeep
+# !data/processed/.gitkeep
+# !data/synthetic/.gitkeep

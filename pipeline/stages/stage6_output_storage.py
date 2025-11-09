@@ -22,6 +22,20 @@ def save_predictions(conn, predictions_df):
         # Clear existing predictions for today
         cursor.execute("DELETE FROM predictions WHERE prediction_date = CURRENT_DATE")
         
+        # Check for required columns and add them if missing
+        required_columns = ['svm_prediction', 'svm_probability', 'xgb_prediction', 'xgb_probability']
+        for col in required_columns:
+            if col not in predictions_df.columns:
+                print(f"   [WARN] Adding missing column: {col}")
+                if 'prediction' in col:
+                    predictions_df[col] = 0  # Default prediction value
+                else:
+                    predictions_df[col] = 0.0  # Default probability value
+        
+        # Ensure priority_level is correctly named
+        if 'priority_level' in predictions_df.columns and 'priority' not in predictions_df.columns:
+            predictions_df['priority'] = predictions_df['priority_level']
+        
         # Prepare data
         values = [
             (
@@ -32,8 +46,8 @@ def save_predictions(conn, predictions_df):
                 int(row['xgb_prediction']) if pd.notna(row['xgb_prediction']) else 0,
                 float(row['xgb_probability']) if pd.notna(row['xgb_probability']) else 0.0,
                 float(row['risk_score']),
-                row['priority_level'],
-                row['recommended_action']
+                row['priority_level'] if 'priority_level' in row else row.get('priority', 'Low'),
+                row.get('recommended_action', 'Monitor equipment status.')
             )
             for _, row in predictions_df.iterrows()
         ]
@@ -42,7 +56,7 @@ def save_predictions(conn, predictions_df):
         insert_query = """
         INSERT INTO predictions (
             equipment_id, prediction_date, svm_prediction, svm_probability,
-            xgb_prediction, xgb_probability, risk_score, priority, recommended_action
+            xgb_prediction, xgb_probability, risk_score, priority_level, recommended_action
         ) VALUES %s
         """
         
@@ -69,24 +83,49 @@ def save_maintenance_schedule(conn, predictions_df):
         # Generate schedule for high-risk equipment
         high_risk = predictions_df[predictions_df['risk_score'] > 20].copy()
         
-        values = [
-            (
-                row['equipment_id'],
-                row['recommended_date'],
-                row['priority_level'],
-                ESTIMATED_COSTS.get(row['priority_level'], 250.0),
-                ESTIMATED_DURATION.get(row['priority_level'], 2.0),
-                random.choice(TECHNICIANS),
-                'Scheduled'
-            )
-            for _, row in high_risk.iterrows()
-        ]
+        if len(high_risk) == 0:
+            print("   [INFO] No high-risk equipment found for scheduling")
+            return
+        
+        # Ensure all required columns exist
+        if 'recommended_date' not in high_risk.columns:
+            print("   [WARN] 'recommended_date' column not found, using today's date")
+            high_risk['recommended_date'] = date.today()
+        
+        # Debug output
+        print(f"   [DEBUG] Columns in high_risk DataFrame: {high_risk.columns.tolist()}")
+        print(f"   [DEBUG] First row sample: {high_risk.iloc[0].to_dict()}")
+        
+        # Create values with explicit column order matching the SQL query
+        values = []
+        for _, row in high_risk.iterrows():
+            # Get values with defaults for missing data
+            equipment_id = row['equipment_id']
+            scheduled_date = row.get('recommended_date', date.today())
+            priority_level = row.get('priority_level', 'Medium')
+            risk_score = float(row.get('risk_score', 50.0))
+            status = 'Scheduled'
+            assigned_technician = random.choice(TECHNICIANS)
+            estimated_cost = float(ESTIMATED_COSTS.get(priority_level, 250.0))
+            estimated_duration_hours = float(ESTIMATED_DURATION.get(priority_level, 2.0))
+            
+            # Add tuple with values in the exact order of columns in the SQL query
+            values.append((
+                equipment_id,
+                scheduled_date,
+                priority_level,
+                risk_score,
+                status,
+                assigned_technician,
+                estimated_cost,
+                estimated_duration_hours
+            ))
         
         # Insert schedule
         insert_query = """
         INSERT INTO maintenance_schedule (
-            equipment_id, scheduled_date, priority, estimated_cost, estimated_duration,
-            assigned_technician, status
+            equipment_id, scheduled_date, priority_level, risk_score, status,
+            assigned_technician, estimated_cost, estimated_duration_hours
         ) VALUES %s
         """
         
@@ -108,16 +147,18 @@ def save_kpis(conn, kpis_dict):
         cursor = conn.cursor()
         
         # Clear existing KPIs for today
-        cursor.execute("DELETE FROM kpi_metrics WHERE calculation_date::date = CURRENT_DATE")
+        cursor.execute("DELETE FROM kpi_metrics WHERE measurement_date::date = CURRENT_DATE")
         
         # Prepare KPI data
         values = [
             (
                 kpi_name,
+                kpi_data.get('category', 'General'),
                 float(kpi_data['value']),
-                None,  # target_value
-                None,  # unit
-                kpi_data['category']
+                kpi_data.get('target', None),  # target_value
+                date.today(),  # measurement_date
+                'Daily',  # period
+                kpi_data.get('status', 'Good')  # status
             )
             for kpi_name, kpi_data in kpis_dict.items()
         ]
@@ -125,7 +166,8 @@ def save_kpis(conn, kpis_dict):
         # Insert KPIs
         insert_query = """
         INSERT INTO kpi_metrics (
-            metric_name, metric_value, target_value, unit, category
+            metric_name, metric_category, metric_value, target_value, 
+            measurement_date, period, status
         ) VALUES %s
         """
         

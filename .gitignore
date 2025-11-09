@@ -77,3 +77,6 @@ temp/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Documentation folder
+docs/

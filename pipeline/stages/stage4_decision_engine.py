@@ -58,6 +58,12 @@ def run_stage4(data):
         # Assign priorities
         predictions_df['priority_level'] = predictions_df['risk_score'].apply(assign_priority)
         
+        # Check if equipment_type column exists
+        if 'equipment_type' not in predictions_df.columns:
+            print("\n[WARN] 'equipment_type' column not found, using generic equipment type")
+            # Add a generic equipment type
+            predictions_df['equipment_type'] = 'equipment'
+        
         # Generate recommendations
         predictions_df['recommended_action'] = predictions_df.apply(
             lambda row: generate_recommendation(row['priority_level'], row['equipment_type']),

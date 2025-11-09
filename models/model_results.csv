@@ -1,0 +1,5 @@
+Model,Accuracy,Precision,Recall,F1-Score,ROC-AUC
+random_forest,1.0,1.0,1.0,1.0,1.0
+svm,1.0,1.0,1.0,1.0,1.0
+xgboost,1.0,1.0,1.0,1.0,1.0
+isolation_forest,0.825,1.0,0.2222222222222222,0.36363636363636365,1.0

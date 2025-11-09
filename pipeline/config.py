@@ -9,6 +9,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.parent
 MODELS_DIR = BASE_DIR / 'models'
 DATA_DIR = BASE_DIR / 'data'
+IMAGES_DIR = BASE_DIR / 'images'
 
 # Database configuration
 DB_CONFIG = {
@@ -85,3 +86,4 @@ ESTIMATED_DURATION = {
 print("[OK] Pipeline configuration loaded")
 print(f"   Database: {DB_CONFIG['database']}")
 print(f"   Models directory: {MODELS_DIR}")
+print(f"   Images directory: {IMAGES_DIR}")
